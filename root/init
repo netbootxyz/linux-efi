@@ -1,0 +1,73 @@
+#!/bin/sh
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# networking functions
+ip_choose_if() {
+	if [ -n "$BOOTIF" ]; then
+		mac=$(printf "%s\n" "$BOOTIF"|sed 's/^01-//;s/-/:/g')
+		dev=$(grep -l $mac /sys/class/net/*/address|head -n 1)
+		dev=${dev%/*}
+		[ -n "$dev" ] && echo "${dev##*/}" && return
+	fi
+	for x in /sys/class/net/eth*; do
+		if grep -iq up $x/operstate;then
+			[ -e "$x" ] && echo ${x##*/} && return
+		fi
+	done
+	[ -e "$x" ] && echo ${x##*/} && return
+}
+configure_ip() {
+	[ -n "$MAC_ADDRESS" ] && return
+	local IFS=':'
+	set -- ${ip:-dhcp}
+	unset IFS
+	local client_ip="$1"
+	local gw_ip="$3"
+	local netmask="$4"
+	local device="$6"
+	local autoconf="$7"
+	local dns1="$8"
+	local dns2="$9"
+	case "$client_ip" in
+		off|none) return;;
+		dhcp) autoconf="dhcp";;
+	esac
+	[ -n "$device" ] || device=$(ip_choose_if)
+	if [ -z "$device" ]; then
+		echo "ERROR: IP requested but no network device was found"
+		return 1
+	fi
+	if [ "$autoconf" = "dhcp" ]; then
+		# automatic configuration
+		ifconfig "$device" 0.0.0.0
+		udhcpc -i "$device" -f -q
+	else
+		# manual configuration
+		[ -n "$client_ip" -a -n "$netmask" ] || return
+		if ifconfig "$device" "$client_ip" netmask "$netmask"; then
+			[ -z "$gw_ip" ] || ip route add 0.0.0.0/0 via "$gw_ip" dev "$device"
+		fi
+	fi
+	for i in $dns1 $dns2; do
+		echo "nameserver $i" >> /etc/resolv.conf
+	done
+	MAC_ADDRESS=$(cat /sys/class/net/$device/address)
+}
+
+# default sys level mounts
+[ -c /dev/null ] || mknod -m 666 /dev/null c 1 3
+mount -t proc -o noexec,nosuid,nodev proc /proc
+mount -t sysfs -o noexec,nosuid,nodev sysfs /sys
+mount -t devtmpfs -o exec,nosuid,mode=0755,size=2M devtmpfs /dev 2>/dev/null \
+	|| mount -t tmpfs -o exec,nosuid,mode=0755,size=2M tmpfs /dev
+
+# pty device nodes
+[ -c /dev/ptmx ] || mknod -m 666 /dev/ptmx c 5 2
+[ -d /dev/pts ] || mkdir -m 755 /dev/pts
+mount -t devpts -o gid=5,mode=0620,noexec,nosuid devpts /dev/pts
+
+# networking base
+configure_ip
+
+# placeholder
+exec /kexec.sh
