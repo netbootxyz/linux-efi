@@ -43,7 +43,7 @@ RUN \
 	
 # build kernel
 FROM alpine:3.12 as buildstage
-ARG KERNEL_VERSION="5.4.14"
+ARG KERNEL_VERSION="5.4.58"
 ARG THREADS=8
 COPY --from=initbasestage /initrd /initrd
 COPY /root /
