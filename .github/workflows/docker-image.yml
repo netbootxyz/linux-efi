@@ -11,6 +11,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build the Docker image
-      run: |
-        docker build --build-arg THREADS=$(grep processor /proc/cpuinfo | wc -l) -t linux-efi:$(date +%s) .
-        docker run --rm -it -v $(pwd):/buildout linux-efi /dump.sh
+      run: build.sh
