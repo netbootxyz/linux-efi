@@ -67,6 +67,7 @@ RUN \
 	perl-dev \
 	python \
 	tar \
+	gnupg \
 	xz
 
 RUN \
@@ -81,7 +82,11 @@ RUN \
 RUN \
  echo "**** download assets ****" && \
  wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-${KERNEL_VERSION}.tar.xz && \
- tar xf linux-* && \
+ wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-${KERNEL_VERSION}.tar.sign && \
+ xz -v -d linux-${KERNEL_VERSION}.tar.xz && \
+ gpg --keyserver keyserver.ubuntu.com --recv B8868C80BA62A1FFFAF5FDA9632D3A06589DA6B1 647F28654894E3BD457199BE38DBBDC86092693E ABAF11C65A2970B130ABE3C479BE3E4300411886 && \
+ gpg --verify linux-${KERNEL_VERSION}.tar.sign && \
+ tar xf linux-${KERNEL_VERSION}.tar && \
  rm -f *.tar.* 
 
 RUN \
