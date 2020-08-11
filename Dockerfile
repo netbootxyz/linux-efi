@@ -1,7 +1,7 @@
 # build init from alpine base
-FROM alpine:3.11 as initbasestage
+FROM alpine:3.12 as initbasestage
 
-ARG ALPINE_VERSION="3.11"
+ARG ALPINE_VERSION="3.12"
 
 RUN \
  echo "**** install build deps ****" && \
@@ -42,7 +42,7 @@ RUN \
 
 	
 # build kernel
-FROM alpine:3.11 as buildstage
+FROM alpine:3.12 as buildstage
 ARG KERNEL_VERSION="5.4.14"
 ARG THREADS=8
 COPY --from=initbasestage /initrd /initrd
@@ -65,7 +65,7 @@ RUN \
 	openssl \
 	openssl-dev \
 	perl-dev \
-	python \
+	python3 \
 	tar \
 	gnupg \
 	xz
@@ -93,10 +93,11 @@ RUN \
  echo "**** compile linux ****" && \
  cd /linux-* && \
  cp ../linuxconfig .config && \
+ make oldconfig && make prepare && \
  make -j ${THREADS} && \
  mv arch/x86/boot/bzImage /vmlinuz && \
  chmod 777 /vmlinuz
 
-FROM alpine:3.11
+FROM alpine:3.12
 COPY --from=buildstage /vmlinuz /vmlinuz
 COPY /root/dump.sh /dump.sh
