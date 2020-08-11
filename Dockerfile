@@ -8,11 +8,12 @@ RUN \
  apk add --no-cache --upgrade \
 	curl \
 	tar \
-	xz && \
- curl -o \
-	/bin/yq -L \
-	"https://github.com/mikefarah/yq/releases/download/2.4.1/yq_linux_amd64" && \
- chmod +x /bin/yq
+	xz 
+
+RUN \
+ echo "**** install yq form edge/testing repository ****" && \
+ apk add --no-cache --upgrade --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing \
+	yq
 
 RUN \
  echo "**** grab Alpine ****" && \
