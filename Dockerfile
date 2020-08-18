@@ -1,18 +1,19 @@
 # build init from alpine base
-FROM alpine:3.11 as initbasestage
+FROM alpine:3.12 as initbasestage
 
-ARG ALPINE_VERSION="3.11"
+ARG ALPINE_VERSION="3.12"
 
 RUN \
  echo "**** install build deps ****" && \
  apk add --no-cache --upgrade \
 	curl \
 	tar \
-	xz && \
- curl -o \
-	/bin/yq -L \
-	"https://github.com/mikefarah/yq/releases/download/2.4.1/yq_linux_amd64" && \
- chmod +x /bin/yq
+	xz 
+
+RUN \
+ echo "**** install yq form edge/testing repository ****" && \
+ apk add --no-cache --upgrade --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing \
+	yq
 
 RUN \
  echo "**** grab Alpine ****" && \
@@ -41,8 +42,8 @@ RUN \
 
 	
 # build kernel
-FROM alpine:3.11 as buildstage
-ARG KERNEL_VERSION="5.4.14"
+FROM alpine:3.12 as buildstage
+ARG KERNEL_VERSION="5.4.58"
 ARG THREADS=8
 COPY --from=initbasestage /initrd /initrd
 COPY /root /
@@ -64,8 +65,9 @@ RUN \
 	openssl \
 	openssl-dev \
 	perl-dev \
-	python \
+	python3 \
 	tar \
+	gnupg \
 	xz
 
 RUN \
@@ -80,17 +82,22 @@ RUN \
 RUN \
  echo "**** download assets ****" && \
  wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-${KERNEL_VERSION}.tar.xz && \
- tar xf linux-* && \
+ wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-${KERNEL_VERSION}.tar.sign && \
+ xz -v -d linux-${KERNEL_VERSION}.tar.xz && \
+ gpg --keyserver keyserver.ubuntu.com --recv B8868C80BA62A1FFFAF5FDA9632D3A06589DA6B1 647F28654894E3BD457199BE38DBBDC86092693E ABAF11C65A2970B130ABE3C479BE3E4300411886 && \
+ gpg --verify linux-${KERNEL_VERSION}.tar.sign && \
+ tar xf linux-${KERNEL_VERSION}.tar && \
  rm -f *.tar.* 
 
 RUN \
  echo "**** compile linux ****" && \
  cd /linux-* && \
  cp ../linuxconfig .config && \
+ make oldconfig && make prepare && \
  make -j ${THREADS} && \
  mv arch/x86/boot/bzImage /vmlinuz && \
  chmod 777 /vmlinuz
 
-FROM alpine:3.11
+FROM alpine:3.12
 COPY --from=buildstage /vmlinuz /vmlinuz
 COPY /root/dump.sh /dump.sh
