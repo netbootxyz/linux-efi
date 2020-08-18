@@ -8,7 +8,7 @@ On a Docker enabled host run:
 ```
 git clone https://github.com/netbootxyz/linux-efi.git
 cd linux-efi
-docker build -t linux-efi .
+docker build --build-arg THREADS=$(grep processor /proc/cpuinfo | wc -l) -t linux-efi .
 docker run --rm -it -v $(pwd):/buildout linux-efi /dump.sh
 ```
 
